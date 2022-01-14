@@ -1,18 +1,42 @@
 package ru.ibs.tests;
 
-import org.junit.*;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.hamcrest.MatcherAssert;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-public class Selenium {
-   static WebDriver driver;
+import java.util.Arrays;
+import java.util.Collection;
+
+import static org.hamcrest.Matchers.*;
+
+@RunWith(Parameterized.class)
+public class ParameterizedTestClass {
+    static WebDriver driver;
     static WebDriverWait wait;
+
+    @Parameterized.Parameters
+    public static Collection<Object> data() {
+        return Arrays.asList(new Object[][]{
+                {"Коля Коля Николай", " (936) 654-6555"},
+                {"Ыгорь", " (900) 000-6505"},
+                {"Степанида Аркапр", " (111) 654-6115"}
+        });
+    }
+
+    @Parameterized.Parameter(0)
+    public String name;
+
+    @Parameterized.Parameter(1)
+    public String phone;
 
     @BeforeClass
     public static void beforeClass() {
@@ -22,27 +46,8 @@ public class Selenium {
         driver.manage().window().maximize();
     }
 
-
-
     @Test
     public void test() throws InterruptedException {
-
-        //неявное ожидание
-//        driver.manage().timeouts().pageLoadTimeout(10, TimeUnit.SECONDS);
-//        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
-        //явное ожидание wait = new WebDriverWait(driver, 10, 1000);
-
-
-//        driver.get("https://www.sberbank.ru/ru/person");
-////         driver.navigate().to("https://www.sberbank.ru/ru/person"); //сохраняет историю переходов в браузере
-////        driver.navigate().back(); //вернуться назад
-//        WebElement baseMenu = driver.findElement(By.xpath("//*[contains(text(), 'Страхование') and @role]"));
-//        baseMenu.click();
-//
-//        driver.quit();
-
-        // WebDriverWait wait = new WebDriverWait(driver, 10, 1000);
-
 
         driver.get("https://www.rgs.ru");
         WebElement company = driver.findElement(By.xpath("//*[contains(text(), \"Компаниям\") and @href]"));
@@ -51,27 +56,22 @@ public class Selenium {
 
         wait.until(ExpectedConditions.attributeContains(company, "Class", "nuxt-link-exact-active"));
 
+       try {
         WebElement health = driver.findElement(By.xpath("//*[contains(text(), \"Здоровье\") and @class=\"padding\"]"));
         waitElementToBeClickable(health);
-        //Thread.sleep(3000);
         health.click();
-
-
-        //driver.manage().timeouts().implicitlyWait(20, TimeUnit.SECONDS);
+       } catch (ElementClickInterceptedException e) {
+           Thread.sleep(3000);
+           WebElement closeBannerButton = driver.findElement(By.xpath("//div[@class=\"widget__close js-collapse-login\"]"));
+           waitElementToBeClickable(closeBannerButton);
+           closeBannerButton.click();
+       }
 
         WebElement insurance = driver.findElement(By.xpath("//*[contains(text(), \"Добровольное медицинское страхование\") and @href]"));
         waitElementToBeClickable(insurance);
         insurance.click();
         Thread.sleep(3000);
-        // wait.until(ExpectedConditions.elementToBeClickable(baseMenu)); (3.07)
 
-//        wait.until(ExpectedConditions.visibilityOf(driver.findElement(By.xpath("//h1[@data-v-1b4d1132]"))));
-//        WebElement parentInsurance = insurance.findElement(By.xpath("./.."));
-//        wait.until(ExpectedConditions.attributeContains(parentInsurance, "Class", "active"));
-
-        //WebElement checkText = driver.findElement(By.xpath("//h1[@data-v-1b4d1132]"));
-        //wait.until(ExpectedConditions.);
-        //Thread.sleep(3000);
         WebElement checkText = driver.findElement(By.xpath("//h1[@data-v-1b4d1132]"));
         Assert.assertTrue("Страничка не загрузилась", checkText.isDisplayed());
         Assert.assertEquals("Заголовок не совпал с ожидаемым", "Добровольное медицинское страхование", checkText.getText());
@@ -88,11 +88,14 @@ public class Selenium {
                 "для оформления полиса", checkText.getText());
 
         String fieldXPath = "//input[@name=\"%s\"]";
-        fillInputField(driver.findElement(By.xpath(String.format(fieldXPath, "userName"))), "Николай Иванович Бах");
-        fillInputField(driver.findElement(By.xpath(String.format(fieldXPath, "userTel"))), " (995) 123-4567");
+        fillInputField(driver.findElement(By.xpath(String.format(fieldXPath, "userName"))), name);
+        fillInputField(driver.findElement(By.xpath(String.format(fieldXPath, "userTel"))), phone);
         fillInputField(driver.findElement(By.xpath(String.format(fieldXPath, "userEmail"))), "qwertyqwerty");
         WebElement checkAgree = driver.findElement(By.xpath("//div[@class=\"checkbox-body form__checkbox\"]/input"));
-        // scrollToElementJs(checkAgree);
+
+        WebElement userNameInput = driver.findElement(By.xpath(String.format(fieldXPath, "userName")));
+        MatcherAssert.assertThat("Ну чото не так пошло((((99", userNameInput.getAttribute("value"),
+                allOf(containsString("Коля"), endsWith("Ыгорь"), startsWith("Степанида")));
 
         WebElement addressField = driver.findElement(By.xpath("//div[@class=\"vue-dadata__search\"]/input"));
         fillInputField(addressField, "г Москва");
@@ -105,7 +108,6 @@ public class Selenium {
         contactMeButton.click();
         Thread.sleep(3000);
 
-        // Проверка на ошибку в поле email:
         WebElement email = driver.findElement(By.xpath(String.format(fieldXPath, "userEmail")));
         checkCorrect(email);
     }
@@ -118,6 +120,7 @@ public class Selenium {
         boolean checkFlag = wait.until(ExpectedConditions.attributeContains(element, "value", value));
         Assert.assertTrue("Поле было заполнено некорректно", checkFlag);
     }
+
     @AfterClass
     public static void afterClass() {
         driver.quit();
